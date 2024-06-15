@@ -26,6 +26,11 @@ func Main(args map[string]interface{}) map[string]interface{} {
 
 	for _, droplet := range droplets {
 		fmt.Printf("Droplet ID: %d, Name: %s, Status: %s\n", droplet.ID, droplet.Name, droplet.Status)
+		_, _, err = client.DropletActions.Shutdown(ctx, droplet.ID)
+		if err != nil {
+			fmt.Printf("Error stopping droplet: %v\n", err)
+			os.Exit(1)
+		}
 	}
 	msg := make(map[string]interface{})
 	msg["body"] = "Hello World!"

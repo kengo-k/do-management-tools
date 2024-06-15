@@ -1,5 +1,6 @@
 parameters: {}
-environment: {}
+environment:
+  DIGITALOCEAN_ACCESS_TOKEN: ${DIGITALOCEAN_ACCESS_TOKEN}
 packages:
     - name: do-management
       shared: false

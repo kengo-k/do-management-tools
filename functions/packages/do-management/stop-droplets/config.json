@@ -1,0 +1,9 @@
+{
+  "droplets-list":
+    [
+      {
+        "project": "account-app",
+        "droplet-names": ["app"]
+      }
+    ]
+}

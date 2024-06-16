@@ -2,37 +2,114 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"strconv"
+	"strings"
+
+	"embed"
 
 	"github.com/digitalocean/godo"
 )
 
+type DropletConfig struct {
+	Project      string   `json:"project"`
+	DropletNames []string `json:"droplet-names"`
+}
+
+type Config struct {
+	DropletsList []DropletConfig `json:"droplets-list"`
+}
+
+//go:embed config.json
+var configFile embed.FS
+
 func Main(args map[string]interface{}) map[string]interface{} {
+
 	token := os.Getenv("DIGITALOCEAN_ACCESS_TOKEN")
 	if token == "" {
 		fmt.Println("Error: DIGITALOCEAN_ACCESS_TOKEN environment variable is not set.")
 		os.Exit(1)
 	}
 
-	client := godo.NewFromToken(token)
-	ctx := context.TODO()
-
-	droplets, _, err := client.Droplets.List(ctx, nil)
+	file, err := configFile.Open("config.json")
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
+	defer file.Close()
 
-	for _, droplet := range droplets {
-		fmt.Printf("Droplet ID: %d, Name: %s, Status: %s\n", droplet.ID, droplet.Name, droplet.Status)
-		_, _, err = client.DropletActions.Shutdown(ctx, droplet.ID)
-		if err != nil {
-			fmt.Printf("Error stopping droplet: %v\n", err)
-			os.Exit(1)
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return map[string]interface{}{
+			"error": fmt.Sprintf("Error reading config file: %v", err),
 		}
 	}
-	msg := make(map[string]interface{})
-	msg["body"] = "Hello World!"
-	return msg
+
+	var config Config
+	err = json.Unmarshal(content, &config)
+	if err != nil {
+		return map[string]interface{}{
+			"error": fmt.Sprintf("Error parsing config file: %v", err),
+		}
+	}
+
+	fmt.Printf("Config: %v\n", config)
+
+	client := godo.NewFromToken(token)
+	ctx := context.Background()
+
+	projects, _, err := client.Projects.List(ctx, nil)
+	if err != nil {
+		return map[string]interface{}{
+			"error": fmt.Sprintf("Error parsing config file: %v", err),
+		}
+	}
+	for _, p := range projects {
+		fmt.Printf("project name: %v\n", p.Name)
+		for _, dropletConfig := range config.DropletsList {
+			if p.Name == dropletConfig.Project {
+				resources, _, err := client.Projects.ListResources(ctx, p.ID, nil)
+				if err != nil {
+					return map[string]interface{}{
+						"error": fmt.Sprintf("Error parsing config file: %v", err),
+					}
+				}
+				for _, resource := range resources {
+					fmt.Printf("Resource URN: %v\n", resource.URN)
+					dropletIdStr, err := getDropletID(resource.URN)
+					if err != nil {
+						fmt.Printf("Resource `%v` is not a droplets\n", resource.URN)
+					}
+					dropletId, err := strconv.Atoi(dropletIdStr)
+					if err != nil {
+						return map[string]interface{}{
+							"error": fmt.Sprintf("Error parsing config file: %v", err),
+						}
+					}
+					_, _, err = client.DropletActions.PowerOff(ctx, dropletId)
+					if err != nil {
+						return map[string]interface{}{
+							"error": fmt.Sprintf("Error parsing config file: %v", err),
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return map[string]interface{}{
+		"message": "Droplets stopped successfully",
+	}
+}
+
+func getDropletID(urn string) (string, error) {
+	prefix := "do:droplet:"
+	if !strings.HasPrefix(urn, prefix) {
+		return "", fmt.Errorf("not a Droplet URN: %s", urn)
+	}
+	dropletID := strings.TrimPrefix(urn, prefix)
+
+	return dropletID, nil
 }

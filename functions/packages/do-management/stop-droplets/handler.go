@@ -80,7 +80,7 @@ func Main(args map[string]interface{}) map[string]interface{} {
 					fmt.Printf("Resource URN: %v\n", resource.URN)
 					dropletIdStr, err := getDropletID(resource.URN)
 					if err != nil {
-						fmt.Printf("Resource `%v` is not a droplets, skipped\n", resource.URN)
+						fmt.Printf("Resource `%v` is not a droplet, skipped\n", resource.URN)
 					}
 					dropletId, err := strconv.Atoi(dropletIdStr)
 					if err != nil {

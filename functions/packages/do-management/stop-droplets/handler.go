@@ -43,7 +43,7 @@ func Main(args map[string]interface{}) map[string]interface{} {
 	content, err := io.ReadAll(file)
 	if err != nil {
 		return map[string]interface{}{
-			"error": fmt.Sprintf("Error reading config file: %v", err),
+			"error": fmt.Sprintf("Error: reading config file: %v", err),
 		}
 	}
 
@@ -51,7 +51,7 @@ func Main(args map[string]interface{}) map[string]interface{} {
 	err = json.Unmarshal(content, &config)
 	if err != nil {
 		return map[string]interface{}{
-			"error": fmt.Sprintf("Error parsing config file: %v", err),
+			"error": fmt.Sprintf("Error: parsing config file: %v", err),
 		}
 	}
 
@@ -63,7 +63,7 @@ func Main(args map[string]interface{}) map[string]interface{} {
 	projects, _, err := client.Projects.List(ctx, nil)
 	if err != nil {
 		return map[string]interface{}{
-			"error": fmt.Sprintf("Error parsing config file: %v", err),
+			"error": fmt.Sprintf("Error: list projects: %v", err),
 		}
 	}
 	for _, p := range projects {
@@ -73,25 +73,25 @@ func Main(args map[string]interface{}) map[string]interface{} {
 				resources, _, err := client.Projects.ListResources(ctx, p.ID, nil)
 				if err != nil {
 					return map[string]interface{}{
-						"error": fmt.Sprintf("Error parsing config file: %v", err),
+						"error": fmt.Sprintf("Error: list resources for project `%v`: %v", p.Name, err),
 					}
 				}
 				for _, resource := range resources {
 					fmt.Printf("Resource URN: %v\n", resource.URN)
 					dropletIdStr, err := getDropletID(resource.URN)
 					if err != nil {
-						fmt.Printf("Resource `%v` is not a droplets\n", resource.URN)
+						fmt.Printf("Resource `%v` is not a droplets, skipped\n", resource.URN)
 					}
 					dropletId, err := strconv.Atoi(dropletIdStr)
 					if err != nil {
 						return map[string]interface{}{
-							"error": fmt.Sprintf("Error parsing config file: %v", err),
+							"error": fmt.Sprintf("Error: invalid dropletId `%v`: %v", dropletIdStr, err),
 						}
 					}
 					_, _, err = client.DropletActions.PowerOff(ctx, dropletId)
 					if err != nil {
 						return map[string]interface{}{
-							"error": fmt.Sprintf("Error parsing config file: %v", err),
+							"error": fmt.Sprintf("Error: shutdown droplet `%v`: %v", dropletId, err),
 						}
 					}
 				}
@@ -100,7 +100,7 @@ func Main(args map[string]interface{}) map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"message": "Droplets stopped successfully",
+		"message": "success",
 	}
 }
 
